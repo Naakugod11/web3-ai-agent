@@ -9,7 +9,7 @@ async def get_nonce():
     nonce = generate_nonce()
     return SiweNonceResponse(nonce=nonce)
 
-@router.pos("/verify", response_model=SiweSession)
+@router.post("/verify", response_model=SiweSession)
 async def verify(request: SiweVerifyRequest):
     try:
         address = verify_siwe_message(request.message, request.signature)
