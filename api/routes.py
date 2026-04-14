@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from core.models import SiweNonceResponse, SiweVerifyRequest, SiweSession
 from services.auth import generate_nonce, verify_siwe_message
+from services.jwt import create_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -13,6 +14,7 @@ async def get_nonce():
 async def verify(request: SiweVerifyRequest):
     try:
         address = verify_siwe_message(request.message, request.signature)
+        token = create_token(address)
         return SiweSession(address=address, chain_id=1)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))

@@ -30,3 +30,7 @@ class AgentResponse(BaseModel):
     query: str
     analysis: TokenAnalysis | None = None
     raw_response: str
+
+class AuthResponse(BaseModel):
+    token: str
+    address: str
