@@ -18,10 +18,17 @@ async def get_nonce(request: Request):
 async def verify(request: Request, body: SiweVerifyRequest):
     auth_limiter.check(request.client.host)
     try:
+        print(f"MESSAGE:\n{body.message}")
+        print(f"SIGNATURE: {body.signature}")
         address = verify_siwe_message(body.message, body.signature)
         token = create_token(address)
         return AuthResponse(token=token, address=address)
     except ValueError as e:
+        print(f"ValueError: {e}")
         raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
+        print(f"Exception type: {type(e)}")
+        print(f"Exception: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"Verification failed: {str(e)}")

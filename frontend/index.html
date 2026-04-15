@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>web3-ai-agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #00ffa3;
+            --accent-dim: rgba(0, 255, 163, 0.08);
+            --accent-mid: rgba(0, 255, 163, 0.2);
+            --accent-glow: 0 0 30px rgba(0, 255, 163, 0.15), 0 0 60px rgba(0, 255, 163, 0.05);
+            --bg: #07080a;
+            --surface: #0d0f13;
+            --surface-hover: #12151b;
+            --border: #1b1f28;
+            --border-accent: #1e2a25;
+            --text: #d4d4d4;
+            --text-dim: #555b6e;
+            --danger: #ff4757;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'IBM Plex Mono', monospace;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* --- Vector grid background --- */
+        .vector-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .vector-bg svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- Scanline overlay --- */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 255, 163, 0.008) 2px,
+                rgba(0, 255, 163, 0.008) 4px
+            );
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 80px 20px 60px;
+        }
+
+        /* --- Header --- */
+        .header {
+            margin-bottom: 56px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .header-label {
+            font-size: 0.65rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--accent);
+            opacity: 0.7;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-label::before {
+            content: '';
+            display: inline-block;
+            width: 18px;
+            height: 1px;
+            background: var(--accent);
+        }
+
+        .header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .header h1 span {
+            color: var(--accent);
+            text-shadow: var(--accent-glow);
+        }
+
+        .header-sub {
+            margin-top: 16px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+            max-width: 500px;
+        }
+
+        /* --- Status bar --- */
+        .status-bar {
+            display: flex;
+            gap: 24px;
+            padding: 14px 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            margin-bottom: 32px;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            animation: slideUp 0.5s ease-out 0.1s both;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+
+        .status-dot.live {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.off {
+            background: var(--danger);
+        }
+
+        /* --- Cards --- */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 28px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            animation: slideUp 0.5s ease-out both;
+        }
+
+        .card:nth-child(2) { animation-delay: 0.15s; }
+        .card:nth-child(3) { animation-delay: 0.25s; }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--accent), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover::before { opacity: 1; }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .card-tag {
+            font-size: 0.6rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+        }
+
+        /* --- Wallet section --- */
+        .wallet-info {
+            display: none;
+            padding: 16px;
+            background: var(--accent-dim);
+            border: 1px solid var(--border-accent);
+            margin-bottom: 20px;
+            font-size: 0.75rem;
+        }
+
+        .wallet-info.visible { display: block; }
+
+        .wallet-address {
+            color: var(--accent);
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .wallet-label {
+            color: var(--text-dim);
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            padding: 14px 28px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .btn-primary:hover {
+            box-shadow: var(--accent-glow);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-disconnect {
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            margin-top: 12px;
+        }
+
+        .btn-disconnect:hover {
+            background: rgba(255, 71, 87, 0.08);
+        }
+
+        /* --- Input --- */
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            font-size: 0.65rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .input {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.8rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input:focus {
+            border-color: var(--accent);
+        }
+
+        .input::placeholder {
+            color: var(--text-dim);
+        }
+
+        /* --- Response --- */
+        .response-area {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .response-area.visible { display: block; }
+
+        .response-header {
+            font-size: 0.65rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .response-header::before {
+            content: '>';
+            color: var(--accent);
+        }
+
+        .response-body {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            font-size: 0.75rem;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .response-body .key { color: var(--accent); }
+        .response-body .string { color: #ffd93d; }
+        .response-body .number { color: #6c9eff; }
+
+        /* --- Wallet data grid --- */
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .data-cell {
+            padding: 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+        }
+
+        .data-cell-label {
+            font-size: 0.6rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .data-cell-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .data-cell-value.accent { color: var(--accent); }
+
+        /* --- Loading --- */
+        .loading {
+            display: none;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .loading.visible { display: block; }
+
+        .loading-bar {
+            height: 2px;
+            background: var(--border);
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .loading-bar::after {
+            content: '';
+            display: block;
+            height: 100%;
+            width: 30%;
+            background: var(--accent);
+            animation: loadSlide 1.2s ease-in-out infinite;
+        }
+
+        /* --- Footer --- */
+        .footer {
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            animation: fadeIn 0.8s ease-out 0.4s both;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+            letter-spacing: 1px;
+        }
+
+        .footer a:hover { text-decoration: underline; }
+
+        /* --- Error --- */
+        .error-msg {
+            display: none;
+            padding: 12px 16px;
+            background: rgba(255, 71, 87, 0.08);
+            border: 1px solid rgba(255, 71, 87, 0.2);
+            color: var(--danger);
+            font-size: 0.75rem;
+            margin-top: 12px;
+        }
+
+        .error-msg.visible { display: block; }
+
+        /* --- Animations --- */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @keyframes loadSlide {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+
+        /* --- Scrollbar --- */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+        /* --- Responsive --- */
+        @media (max-width: 520px) {
+            .header h1 { font-size: 2rem; }
+            .container { padding: 40px 16px 40px; }
+            .data-grid { grid-template-columns: 1fr; }
+            .status-bar { flex-wrap: wrap; gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Vector grid background -->
+<div class="vector-bg">
+    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+        <defs>
+            <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(0,255,163,0.04)" stroke-width="0.5"/>
+            </pattern>
+            <pattern id="grid-lg" width="300" height="300" patternUnits="userSpaceOnUse">
+                <path d="M 300 0 L 0 0 0 300" fill="none" stroke="rgba(0,255,163,0.08)" stroke-width="0.5"/>
+            </pattern>
+            <radialGradient id="fade" cx="50%" cy="30%">
+                <stop offset="0%" stop-color="rgba(0,255,163,0.06)"/>
+                <stop offset="100%" stop-color="transparent"/>
+            </radialGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+        <rect width="100%" height="100%" fill="url(#grid-lg)"/>
+        <rect width="100%" height="100%" fill="url(#fade)"/>
+        <!-- Decorative vector lines -->
+        <line x1="10%" y1="0" x2="30%" y2="100%" stroke="rgba(0,255,163,0.02)" stroke-width="1"/>
+        <line x1="70%" y1="0" x2="90%" y2="100%" stroke="rgba(0,255,163,0.02)" stroke-width="1"/>
+        <line x1="50%" y1="0" x2="20%" y2="100%" stroke="rgba(0,255,163,0.015)" stroke-width="1"/>
+        <circle cx="20%" cy="20%" r="120" fill="none" stroke="rgba(0,255,163,0.03)" stroke-width="0.5"/>
+        <circle cx="80%" cy="70%" r="80" fill="none" stroke="rgba(0,255,163,0.03)" stroke-width="0.5"/>
+        <!-- Hex shapes -->
+        <polygon points="150,50 180,30 210,50 210,90 180,110 150,90" fill="none" stroke="rgba(0,255,163,0.04)" stroke-width="0.5" transform="translate(400, 200)"/>
+        <polygon points="150,50 180,30 210,50 210,90 180,110 150,90" fill="none" stroke="rgba(0,255,163,0.03)" stroke-width="0.5" transform="translate(100, 500) scale(1.5)"/>
+    </svg>
+</div>
+
+<div class="container">
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-label">Phase 1 — Web3 AI Agent</div>
+        <h1>web3-ai<span>-agent</span></h1>
+        <p class="header-sub">Authenticate with your Ethereum wallet. Query an AI agent with on-chain context. Every response is structured and validated.</p>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-dot" id="apiStatus"></div>
+            <span id="apiStatusText">Checking API...</span>
+        </div>
+        <div class="status-item">
+            <div class="status-dot" id="walletStatus"></div>
+            <span id="walletStatusText">No wallet</span>
+        </div>
+        <div class="status-item">
+            <div class="status-dot" id="authStatus"></div>
+            <span id="authStatusText">Not authenticated</span>
+        </div>
+    </div>
+
+    <!-- Connect wallet card -->
+    <div class="card" id="connectCard">
+        <div class="card-header">
+            <span class="card-title">01 — Connect Wallet</span>
+            <span class="card-tag">SIWE</span>
+        </div>
+        <button class="btn btn-primary" id="connectBtn" onclick="connectWallet()">
+            Connect MetaMask
+        </button>
+        <div class="wallet-info" id="walletInfo">
+            <div class="wallet-label">Connected wallet</div>
+            <div class="wallet-address" id="walletAddress"></div>
+            <button class="btn btn-disconnect" onclick="disconnect()">Disconnect</button>
+        </div>
+        <div class="error-msg" id="connectError"></div>
+    </div>
+
+    <!-- Agent query card -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">02 — Query Agent</span>
+            <span class="card-tag">AI</span>
+        </div>
+        <div class="input-group">
+            <label class="input-label" for="prompt">Prompt</label>
+            <input class="input" id="prompt" type="text" placeholder="Analyze ETH as an investment..." disabled>
+        </div>
+        <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeToken()" disabled>
+            Run Analysis
+        </button>
+        <div class="loading" id="analyzeLoading">
+            Querying agent...
+            <div class="loading-bar"></div>
+        </div>
+        <div class="response-area" id="analyzeResponse">
+            <div class="response-header">Agent Response</div>
+            <div class="response-body" id="analyzeResult"></div>
+        </div>
+        <div class="error-msg" id="analyzeError"></div>
+    </div>
+
+    <!-- Wallet data card -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">03 — On-Chain Data</span>
+            <span class="card-tag">Web3</span>
+        </div>
+        <button class="btn btn-primary" id="walletBtn" onclick="fetchWallet()" disabled>
+            Fetch Wallet Data
+        </button>
+        <div class="loading" id="walletLoading">
+            Reading chain...
+            <div class="loading-bar"></div>
+        </div>
+        <div class="data-grid" id="walletData" style="display:none;">
+            <div class="data-cell">
+                <div class="data-cell-label">ETH Balance</div>
+                <div class="data-cell-value accent" id="ethBalance">—</div>
+            </div>
+            <div class="data-cell">
+                <div class="data-cell-label">Transactions</div>
+                <div class="data-cell-value" id="txCount">—</div>
+            </div>
+            <div class="data-cell">
+                <div class="data-cell-label">Risk Level</div>
+                <div class="data-cell-value" id="riskLevel">—</div>
+            </div>
+            <div class="data-cell">
+                <div class="data-cell-label">Account Type</div>
+                <div class="data-cell-value" id="accountType">—</div>
+            </div>
+        </div>
+        <div class="error-msg" id="walletError"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <span>web3-ai-agent v0.1.0</span>
+        <a href="https://x.com/naaku_builds" target="_blank">@naaku_builds</a>
+    </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
+<script>
+    const API = 'http://localhost:8000';
+    let token = null;
+    let walletAddr = null;
+
+    // --- Check API health ---
+    async function checkAPI() {
+        try {
+            const res = await fetch(`${API}/health`);
+            const data = await res.json();
+            if (data.status === 'alive') {
+                setStatus('api', 'live', 'API online');
+            } else {
+                setStatus('api', 'off', 'API error');
+            }
+        } catch {
+            setStatus('api', 'off', 'API offline');
+        }
+    }
+
+    // --- Connect MetaMask ---
+    async function connectWallet() {
+        const btn = document.getElementById('connectBtn');
+        const error = document.getElementById('connectError');
+        error.classList.remove('visible');
+
+        if (!window.ethereum) {
+            showError('connectError', 'MetaMask not found. Install it first.');
+            return;
+        }
+
+        btn.textContent = 'CONNECTING...';
+        btn.disabled = true;
+
+        try {
+            // Request accounts
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            walletAddr = ethers.getAddress(accounts[0])
+
+            // Get nonce
+            const nonceRes = await fetch(`${API}/auth/nonce`);
+            const { nonce } = await nonceRes.json();
+
+            // Build SIWE message
+            const domain = window.location.host || 'localhost';
+            const origin = window.location.origin || 'http://localhost';
+            const message = buildSiweMessage(walletAddr, nonce, domain, origin);
+
+            // Sign message
+            const signature = await window.ethereum.request({
+                method: 'personal_sign',
+                params: [message, walletAddr],
+            });
+
+            // Verify with backend
+            const verifyRes = await fetch(`${API}/auth/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, signature }),
+            });
+
+            if (!verifyRes.ok) {
+                throw new Error('Verification failed');
+            }
+
+            const authData = await verifyRes.json();
+            token = authData.token;
+
+            // Update UI
+            document.getElementById('walletAddress').textContent = walletAddr;
+            document.getElementById('walletInfo').classList.add('visible');
+            btn.style.display = 'none';
+
+            setStatus('wallet', 'live', truncateAddr(walletAddr));
+            setStatus('auth', 'live', 'Authenticated');
+
+            // Enable agent features
+            document.getElementById('prompt').disabled = false;
+            document.getElementById('analyzeBtn').disabled = false;
+            document.getElementById('walletBtn').disabled = false;
+
+        } catch (err) {
+            showError('connectError', err.message || 'Connection failed');
+            btn.textContent = 'CONNECT METAMASK';
+            btn.disabled = false;
+        }
+    }
+
+    // --- Build SIWE message ---
+    function buildSiweMessage(address, nonce, domain, origin) {
+        const now = new Date().toISOString();
+        return [
+            `${domain} wants you to sign in with your Ethereum account:`,
+            address,
+            '',
+            'Sign in to web3-ai-agent',
+            '',
+            `URI: ${origin}`,
+            `Version: 1`,
+            `Chain ID: 1`,
+            `Nonce: ${nonce}`,
+            `Issued At: ${now}`
+        ].join('\n');
+}
+
+    // --- Analyze token ---
+    async function analyzeToken() {
+        const prompt = document.getElementById('prompt').value.trim();
+        if (!prompt) return;
+
+        const loading = document.getElementById('analyzeLoading');
+        const response = document.getElementById('analyzeResponse');
+        const error = document.getElementById('analyzeError');
+
+        loading.classList.add('visible');
+        response.classList.remove('visible');
+        error.classList.remove('visible');
+
+        try {
+            const res = await fetch(`${API}/agent/analyze`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ prompt, wallet_address: walletAddr }),
+            });
+
+            if (res.status === 429) throw new Error('Rate limited. Wait and try again.');
+            if (res.status === 401) throw new Error('Auth expired. Reconnect wallet.');
+            if (!res.ok) throw new Error('Analysis failed');
+
+            const data = await res.json();
+            loading.classList.remove('visible');
+            response.classList.add('visible');
+
+            if (data.analysis) {
+                document.getElementById('analyzeResult').innerHTML = syntaxHighlight(JSON.stringify(data.analysis, null, 2));
+            } else {
+                document.getElementById('analyzeResult').textContent = data.raw_response;
+            }
+        } catch (err) {
+            loading.classList.remove('visible');
+            showError('analyzeError', err.message);
+        }
+    }
+
+    // --- Fetch wallet data ---
+    async function fetchWallet() {
+        const loading = document.getElementById('walletLoading');
+        const dataGrid = document.getElementById('walletData');
+        const error = document.getElementById('walletError');
+
+        loading.classList.add('visible');
+        dataGrid.style.display = 'none';
+        error.classList.remove('visible');
+
+        try {
+            const res = await fetch(`${API}/agent/wallet`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+
+            if (res.status === 429) throw new Error('Rate limited. Wait and try again.');
+            if (res.status === 401) throw new Error('Auth expired. Reconnect wallet.');
+            if (!res.ok) throw new Error('Failed to fetch wallet data');
+
+            const data = await res.json();
+            loading.classList.remove('visible');
+            dataGrid.style.display = 'grid';
+
+            document.getElementById('ethBalance').textContent = `${parseFloat(data.eth_balance).toFixed(4)} ETH`;
+            document.getElementById('txCount').textContent = data.transaction_count.toLocaleString();
+            document.getElementById('riskLevel').textContent = data.risk_level.toUpperCase();
+            document.getElementById('accountType').textContent = data.is_contract ? 'Contract' : 'EOA';
+        } catch (err) {
+            loading.classList.remove('visible');
+            showError('walletError', err.message);
+        }
+    }
+
+    // --- Disconnect ---
+    function disconnect() {
+        token = null;
+        walletAddr = null;
+
+        document.getElementById('walletInfo').classList.remove('visible');
+        document.getElementById('connectBtn').style.display = 'block';
+        document.getElementById('connectBtn').textContent = 'CONNECT METAMASK';
+        document.getElementById('connectBtn').disabled = false;
+
+        document.getElementById('prompt').disabled = true;
+        document.getElementById('analyzeBtn').disabled = true;
+        document.getElementById('walletBtn').disabled = true;
+
+        document.getElementById('analyzeResponse').classList.remove('visible');
+        document.getElementById('walletData').style.display = 'none';
+
+        setStatus('wallet', 'off', 'No wallet');
+        setStatus('auth', 'off', 'Not authenticated');
+    }
+
+    // --- Helpers ---
+    function setStatus(id, state, text) {
+        const dot = document.getElementById(`${id}Status`);
+        const label = document.getElementById(`${id}StatusText`);
+        dot.className = `status-dot ${state}`;
+        label.textContent = text;
+    }
+
+    function showError(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.classList.add('visible');
+    }
+
+    function truncateAddr(addr) {
+        return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    }
+
+    function syntaxHighlight(json) {
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+            let cls = 'number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'key';
+                    match = match.replace(/"/g, '');
+                } else {
+                    cls = 'string';
+                }
+            }
+            return `<span class="${cls}">${match}</span>`;
+        });
+    }
+
+    // Allow Enter key for analysis
+    document.getElementById('prompt').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !document.getElementById('analyzeBtn').disabled) {
+            analyzeToken();
+        }
+    });
+
+    // Init
+    checkAPI();
+</script>
+
+</body>
+</html>
