@@ -26,9 +26,17 @@ class TokenAnalysis(BaseModel):
     risk_score: int
     summary: str
 
+class WalletAnalysis(BaseModel):
+    address: str
+    eth_balance: float
+    transaction_count: int
+    is_contract: bool
+    risk_level: str
+    summary: str
+
 class AgentResponse(BaseModel):
     query: str
-    analysis: TokenAnalysis | None = None
+    analysis: TokenAnalysis | WalletAnalysis | None = None
     raw_response: str
 
 class AuthResponse(BaseModel):
