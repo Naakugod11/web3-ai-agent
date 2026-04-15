@@ -141,10 +141,10 @@ web3-ai-agent/
 This project is Phase 1 of a larger Web3 + AI development track.
 
 **This repo:**
-- [ ] Rate limiting per wallet
+- [x] Rate limiting per wallet
 - [ ] Redis for nonce + session storage
 - [ ] Frontend demo with wallet connect
-- [ ] Docker deployment
+- [x] Docker deployment
 
 **Upcoming projects:**
 - Phase 2 — RAG system for crypto knowledge (separate repo)
