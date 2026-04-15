@@ -1,19 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from core.models import AgentQuery, AgentResponse, WalletAnalysis
 from core.middleware import require_auth
+from core.rate_limit import agent_limiter
 from services.agent import analyze
 from services.chain import get_wallet_summary
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
+
 @router.post("/analyze", response_model=AgentResponse)
-async def agent_analyze(query: AgentQuery, wallet: str = Depends(require_auth)):
+async def agent_analyze(request: Request, query: AgentQuery, wallet: str = Depends(require_auth)):
+    agent_limiter.check(wallet)
     try:
         analysis = analyze(query.prompt, wallet)
         return AgentResponse(
             query=query.prompt,
             analysis=analysis,
-            raw_response=analysis.model_dumpt_json(),
+            raw_response=analysis.model_dump_json(),
         )
     except Exception as e:
         return AgentResponse(
@@ -22,8 +25,10 @@ async def agent_analyze(query: AgentQuery, wallet: str = Depends(require_auth)):
             raw_response=str(e),
         )
 
+
 @router.get("/wallet", response_model=WalletAnalysis)
-async def wallet_info(wallet: str = Depends(require_auth)):
+async def wallet_info(request: Request, wallet: str = Depends(require_auth)):
+    agent_limiter.check(wallet)
     try:
         data = get_wallet_summary(wallet)
         return WalletAnalysis(

@@ -1,21 +1,26 @@
-from fastapi import APIRouter, HTTPException
-from core.models import SiweNonceResponse, SiweVerifyRequest, SiweSession
+from fastapi import APIRouter, HTTPException, Request
+from core.models import SiweNonceResponse, SiweVerifyRequest, AuthResponse
+from core.rate_limit import auth_limiter
 from services.auth import generate_nonce, verify_siwe_message
 from services.jwt import create_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
 @router.get("/nonce", response_model=SiweNonceResponse)
-async def get_nonce():
+async def get_nonce(request: Request):
+    auth_limiter.check(request.client.host)
     nonce = generate_nonce()
     return SiweNonceResponse(nonce=nonce)
 
-@router.post("/verify", response_model=SiweSession)
-async def verify(request: SiweVerifyRequest):
+
+@router.post("/verify", response_model=AuthResponse)
+async def verify(request: Request, body: SiweVerifyRequest):
+    auth_limiter.check(request.client.host)
     try:
-        address = verify_siwe_message(request.message, request.signature)
+        address = verify_siwe_message(body.message, body.signature)
         token = create_token(address)
-        return SiweSession(address=address, chain_id=1)
+        return AuthResponse(token=token, address=address)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
