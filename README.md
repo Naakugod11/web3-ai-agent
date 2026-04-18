@@ -142,8 +142,8 @@ This project is Phase 1 of a larger Web3 + AI development track.
 
 **This repo:**
 - [x] Rate limiting per wallet
-- [ ] Redis for nonce + session storage
-- [ ] Frontend demo with wallet connect
+- [x] Redis for nonce + session storage
+- [x] Frontend demo with wallet connect
 - [x] Docker deployment
 
 **Upcoming projects:**
